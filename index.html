@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>City Pathfinder Challenge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <div class="container">
+        <h1 class="animate__animated animate__bounceInDown">City Pathfinder Challenge</h1>        <p class="game-description">Navigate through the city from the green start point to the red end point. Draw your path and see how it compares to the optimal route!</p>
+        <div class="game-content">
+            <div class="game-canvas-container">
+                <div id="levelInfo">Level: <span id="currentLevel">1</span></div>
+                <div id="timer">Time: <span id="timeLeft">60</span>s</div>
+                <canvas id="gameCanvas" width="600" height="450"></canvas>
+                <div class="button-container">
+                    <button id="startButton"><i class="fas fa-play"></i> Start Level</button>
+                    <button id="newGameButton"><i class="fas fa-redo"></i> New Game</button>
+                    <button id="finishButton"><i class="fas fa-flag-checkered"></i> Finish</button>
+                    <button id="showPathButton"><i class="fas fa-route"></i> Show Right Path</button>
+                </div>
+                <div id="resultMessage"></div>
+            </div>
+            <div class="game-info">
+                <div class="stats">
+                    <div class="stat">Score: <span id="score">0</span></div>
+                    <div class="stat">Best Score: <span id="bestScore">0</span></div>
+                </div>
+                <div id="achievements"></div>
+                <div id="customization">
+                    <div class="theme-option" style="background-color: #3498db;" onclick="changeTheme('#3498db')"></div>
+                    <div class="theme-option" style="background-color: #2ecc71;" onclick="changeTheme('#2ecc71')"></div>
+                    <div class="theme-option" style="background-color: #e74c3c;" onclick="changeTheme('#e74c3c')"></div>
+                </div>
+                <div id="powerUpInfo">
+                    <h3>Power-Ups:</h3>
+                    <p><span style="color: #f39c12;">●</span> Path Reveal: Reveals half of the optimal path</p>
+                    <p><span style="color: #9b59b6;">●</span> Obstacle Remover: Removes up to 15 random obstacles</p>
+                    <p><span style="color: #1abc9c;">●</span> Time Boost: Adds 10 seconds to the timer</p>
+                    <p><span style="color: #e67e22;">●</span> Speed Boost: Temporarily increases drawing speed</p>
+                    <p><span style="color: #3498db;">●</span> Point Boost: Adds 10 points to your score</p>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2ecc71;"></div>
+                        <span>Start</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>End</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #34495e;"></div>
+                        <span>Obstacle</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f1c40f;"></div>
+                        <span>Your Path</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #000000;"></div>
+                        <span>Optimal Path</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="muteButton"><i class="fas fa-volume-up"></i></button>
+
+    <audio id="backgroundMusic" loop>
+        <source src="Joshua McLean - Mountain Trials ♫ NO COPYRIGHT 8-bit Music.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="powerUpSound">
+        <source src="Minecraft Eating - Sound Effect (HD).mp3" type="audio/mpeg">
+    </audio>
+    <audio id="levelCompleteSound">
+        <source src="WIN sound effect no copyright.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="gameOverSound">
+        <source src="The Price is Right Losing Horn - Sound Effect (HD).mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+</body>
+</html>
