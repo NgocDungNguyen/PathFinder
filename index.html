@@ -1,7 +1,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, height=device-height">
     <title>City Pathfinder Challenge</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
@@ -56,27 +56,29 @@
 
         <!-- Game Content -->
         <div class="game-content">
-            <div class="game-canvas-container">
-                <div class="game-stats">
+            <div class="game-stats-container">
+                <div class="stats">
+                    <div class="stat">Score: <span id="score">0</span></div>
+                    <div class="stat">Best: <span id="bestScore">0</span></div>
+                </div>
+                <div class="level-info">
                     <div id="levelInfo">Level: <span id="currentLevel">1</span></div>
                     <div id="timer">Time: <span id="timeLeft">60</span>s</div>
                 </div>
-                <canvas id="gameCanvas" width="375" height="280"></canvas>
+            </div>
+
+            <div class="game-canvas-container">
+                <canvas id="gameCanvas"></canvas>
                 <div class="button-container">
                     <button id="startButton"><i class="fas fa-play"></i> Start</button>
-                    <button id="newGameButton"><i class="fas fa-redo"></i> New Game</button>
                     <button id="finishButton"><i class="fas fa-flag-checkered"></i> Finish</button>
+                    <button id="newGameButton"><i class="fas fa-redo"></i> New Game</button>
                 </div>
                 <div id="resultMessage"></div>
             </div>
 
             <div class="game-info">
-                <div class="stats">
-                    <div class="stat">Score: <span id="score">0</span></div>
-                    <div class="stat">Best Score: <span id="bestScore">0</span></div>
-                </div>
                 <div id="achievements"></div>
-                
                 <div class="legend">
                     <div class="legend-item">
                         <div class="legend-color" style="background-color: #2ecc71;"></div>
@@ -101,6 +103,7 @@
 
     <button id="muteButton"><i class="fas fa-volume-up"></i></button>
 
+    <!-- Audio elements -->
     <audio id="backgroundMusic" loop>
         <source src="Joshua McLean - Mountain Trials ♫ NO COPYRIGHT 8-bit Music.mp3" type="audio/mpeg">
     </audio>
@@ -114,8 +117,9 @@
         <source src="The Price is Right Losing Horn - Sound Effect (HD).mp3" type="audio/mpeg">
     </audio>
 
-    <script src="script.js"></script>
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
