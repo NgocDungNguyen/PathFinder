@@ -144,11 +144,13 @@ function resizeCanvas() {
     canvas.width = canvasSize;
     canvas.height = canvasSize * 0.75;
     
-    gridSize = Math.floor(canvasSize / 15); // Adjust grid size
+    gridSize = Math.floor(canvasSize / 12); // Changed from 15 to 12 for bigger cells
     cols = Math.floor(canvas.width / gridSize);
     rows = Math.floor(canvas.height / gridSize);
     
-    initializeGrid();
+    if (!gameStarted) {
+        initializeGrid();
+    }
 }
 
 function initializeGrid() {
@@ -161,16 +163,17 @@ function initializeGrid() {
         }
     }
 
-    // Place start and end points
+    // Place start and end points with minimum distance
     startNode = grid[1][Math.floor(rows/2)];
     endNode = grid[cols-2][Math.floor(rows/2)];
 
     // Add obstacles
-    let obstacleCount = Math.floor((cols * rows) * (0.2 + (currentLevel - 1) * 0.05));
+    let obstacleCount = Math.floor((cols * rows) * 0.25); // 25% of cells are obstacles
     for (let i = 0; i < obstacleCount; i++) {
         let x = Math.floor(Math.random() * cols);
         let y = Math.floor(Math.random() * rows);
         
+        // Check if position is valid for obstacle
         if (grid[x][y] !== startNode && 
             grid[x][y] !== endNode && 
             grid[x][y].walkable) {
@@ -188,7 +191,8 @@ function initializeGrid() {
     showOptimalPath = false;
 
     // Only proceed if a valid path exists
-    if (path.length === 0) {
+    if (!path || path.length === 0) {
+        console.log("No valid path found, retrying...");
         initializeGrid(); // Retry if no valid path
         return;
     }
@@ -197,7 +201,6 @@ function initializeGrid() {
     updateStats();
     drawGrid();
 }
-
 
 function addPowerUps() {
     const powerUpTypes = ['obstacleRemover', 'timeBoost', 'pointBoost'];
@@ -220,6 +223,8 @@ function addPowerUps() {
 }
 
 function drawGrid() {
+    console.log("Drawing grid:", {cols, rows, gridSize, startNode, endNode});
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw grid and obstacles
@@ -535,6 +540,7 @@ function removeRandomObstacles() {
 function startGame() {
     if (!gameStarted) {
         gameStarted = true;
+        initializeGrid(); // Add this line to ensure grid is initialized
         startTimer();
         document.getElementById('startButton').style.display = 'none';
         playBackgroundMusic();
@@ -546,6 +552,7 @@ function startGame() {
             confirmButtonText: 'Start!',
             allowOutsideClick: false
         }).then(() => {
+            drawGrid(); // Add this line to ensure grid is drawn
             animationId = requestAnimationFrame(gameLoop);
         });
     }
