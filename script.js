@@ -242,8 +242,7 @@ function drawGrid() {
         }
     }
 
-
-      // Draw start point
+    // Draw start point
     ctx.fillStyle = '#2ecc71';
     ctx.beginPath();
     ctx.arc(
@@ -266,8 +265,8 @@ function drawGrid() {
         Math.PI * 2
     );
     ctx.fill();
-    
-     // Draw power-ups
+
+    // Draw power-ups
     powerUps.forEach(powerUp => {
         if (!powerUp.collected) {
             let color;
@@ -308,7 +307,7 @@ function drawGrid() {
         ctx.lineJoin = 'round';
         ctx.stroke();
     }
-}
+
     // Draw optimal path if shown
     if (showOptimalPath && path.length > 0) {
         ctx.beginPath();
