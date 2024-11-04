@@ -209,7 +209,18 @@ function addPowerUps() {
     for (let i = 0; i < powerUpCount; i++) {
         let x = Math.floor(Math.random() * cols);
         let y = Math.floor(Math.random() * rows);
-        if (grid[x][y].walkable && !powerUps.some(p => p.x === x && p.y === y)) {
+        
+        // Check distance from start and end points
+        const distanceFromStart = Math.abs(x - startNode.x) + Math.abs(y - startNode.y);
+        const distanceFromEnd = Math.abs(x - endNode.x) + Math.abs(y - endNode.y);
+        
+        if (grid[x][y].walkable && 
+            !powerUps.some(p => p.x === x && p.y === y) &&
+            distanceFromStart > 2 && // Minimum distance from start
+            distanceFromEnd > 2 &&   // Minimum distance from end
+            grid[x][y] !== startNode && 
+            grid[x][y] !== endNode) {
+            
             powerUps.push({
                 x, 
                 y, 
@@ -217,7 +228,7 @@ function addPowerUps() {
                 collected: false
             });
         } else {
-            i--;
+            i--; // Try again if position was invalid
         }
     }
 }
@@ -276,20 +287,26 @@ function drawGrid() {
         if (!powerUp.collected) {
             let color;
             switch (powerUp.type) {
-                case 'obstacleRemover': color = '#9b59b6'; break;
-                case 'timeBoost': color = '#1abc9c'; break;
-                case 'pointBoost': color = '#3498db'; break;
+                case 'obstacleRemover': color = '#ff6b6b'; // Changed to red-orange
+                case 'timeBoost': color = '#ffd93d'; // Changed to yellow
+                case 'pointBoost': color = '#6c5ce7'; // Changed to purple
+                break;
             }
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(
                 (powerUp.x + 0.5) * gridSize,
                 (powerUp.y + 0.5) * gridSize,
-                gridSize/3,
+                gridSize/4, // Made power-ups slightly smaller
                 0,
                 Math.PI * 2
             );
             ctx.fill();
+            
+            // Add a distinctive border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
     });
 
