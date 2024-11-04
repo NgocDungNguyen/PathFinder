@@ -209,18 +209,7 @@ function addPowerUps() {
     for (let i = 0; i < powerUpCount; i++) {
         let x = Math.floor(Math.random() * cols);
         let y = Math.floor(Math.random() * rows);
-        
-        // Check distance from start and end points
-        const distanceFromStart = Math.abs(x - startNode.x) + Math.abs(y - startNode.y);
-        const distanceFromEnd = Math.abs(x - endNode.x) + Math.abs(y - endNode.y);
-        
-        if (grid[x][y].walkable && 
-            !powerUps.some(p => p.x === x && p.y === y) &&
-            distanceFromStart > 2 && // Minimum distance from start
-            distanceFromEnd > 2 &&   // Minimum distance from end
-            grid[x][y] !== startNode && 
-            grid[x][y] !== endNode) {
-            
+        if (grid[x][y].walkable && !powerUps.some(p => p.x === x && p.y === y)) {
             powerUps.push({
                 x, 
                 y, 
@@ -228,7 +217,7 @@ function addPowerUps() {
                 collected: false
             });
         } else {
-            i--; // Try again if position was invalid
+            i--;
         }
     }
 }
