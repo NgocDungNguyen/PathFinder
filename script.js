@@ -278,16 +278,21 @@ function drawGrid() {
             switch (powerUp.type) {
                 case 'obstacleRemover':
                     color = '#ff6b6b';  // red-orange
-                    break;              // Add break statement
+                    break;              
                 case 'timeBoost':
                     color = '#ffd93d';  // yellow
-                    break;              // Add break statement
+                    break;              
                 case 'pointBoost':
                     color = '#6c5ce7';  // purple
-                    break;              // Add break statement
+                    break;              
+                default:
+                    color = '#ffffff';  // default white
+                    break;
             }
-            ctx.fillStyle = color;
+            
+            // Draw power-up circle
             ctx.beginPath();
+            ctx.fillStyle = color;
             ctx.arc(
                 (powerUp.x + 0.5) * gridSize,
                 (powerUp.y + 0.5) * gridSize,
@@ -297,10 +302,22 @@ function drawGrid() {
             );
             ctx.fill();
             
-            // Add a distinctive border
-            ctx.strokeStyle = '#fff';
+            // Add white border
+            ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.stroke();
+
+            // Add inner dot
+            ctx.beginPath();
+            ctx.fillStyle = '#ffffff';
+            ctx.arc(
+                (powerUp.x + 0.5) * gridSize,
+                (powerUp.y + 0.5) * gridSize,
+                gridSize/8,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
         }
     });
 
