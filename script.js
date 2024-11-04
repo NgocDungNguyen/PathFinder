@@ -162,6 +162,7 @@ function initializeGrid() {
     }
 
     do {
+        // Reset grid
         for (let i = 0; i < cols; i++) {
             for (let j = 0; j < rows; j++) {
                 grid[i][j].walkable = true;
@@ -169,17 +170,27 @@ function initializeGrid() {
             }
         }
 
+        // Set start and end points with minimum distance
+        let minDistance;
         do {
             startNode = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
             endNode = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
-            let minDistance = Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
+            minDistance = Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
         } while (minDistance < Math.max(cols, rows) / 2);
 
+        // Add obstacles
         let obstaclePercentage = 0.2 + (currentLevel - 1) * 0.08;
-        for (let i = 0; i < cols * rows * obstaclePercentage; i++) {
-            let obstacle = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
-            if (obstacle !== startNode && obstacle !== endNode) {
+        let obstacleCount = Math.floor(cols * rows * obstaclePercentage);
+        
+        for (let i = 0; i < obstacleCount; i++) {
+            let x = Math.floor(Math.random() * cols);
+            let y = Math.floor(Math.random() * rows);
+            let obstacle = grid[x][y];
+            
+            if (obstacle !== startNode && obstacle !== endNode && obstacle.walkable) {
                 obstacle.walkable = false;
+            } else {
+                i--; // Try again if position was invalid
             }
         }
 
