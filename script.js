@@ -144,68 +144,60 @@ function resizeCanvas() {
     canvas.width = canvasSize;
     canvas.height = canvasSize * 0.75;
     
-    gridSize = MOBILE.isTouchDevice() ? 35 : 30;
+    gridSize = Math.floor(canvasSize / 15); // Adjust grid size
     cols = Math.floor(canvas.width / gridSize);
     rows = Math.floor(canvas.height / gridSize);
     
     initializeGrid();
-    drawGrid();
 }
 
 function initializeGrid() {
+    // Reset grid
     grid = [];
     for (let i = 0; i < cols; i++) {
         grid[i] = [];
         for (let j = 0; j < rows; j++) {
-            grid[i][j] = new Node(i, j);
+            grid[i][j] = new Node(i, j, true);
         }
     }
 
-    do {
-        // Reset grid
-        for (let i = 0; i < cols; i++) {
-            for (let j = 0; j < rows; j++) {
-                grid[i][j].walkable = true;
-                grid[i][j].touched = false;
-            }
-        }
+    // Place start and end points
+    startNode = grid[1][Math.floor(rows/2)];
+    endNode = grid[cols-2][Math.floor(rows/2)];
 
-        // Set start and end points with minimum distance
-        let minDistance;
-        do {
-            startNode = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
-            endNode = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
-            minDistance = Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
-        } while (minDistance < Math.max(cols, rows) / 2);
-
-        // Add obstacles
-        let obstaclePercentage = 0.2 + (currentLevel - 1) * 0.08;
-        let obstacleCount = Math.floor(cols * rows * obstaclePercentage);
+    // Add obstacles
+    let obstacleCount = Math.floor((cols * rows) * (0.2 + (currentLevel - 1) * 0.05));
+    for (let i = 0; i < obstacleCount; i++) {
+        let x = Math.floor(Math.random() * cols);
+        let y = Math.floor(Math.random() * rows);
         
-        for (let i = 0; i < obstacleCount; i++) {
-            let x = Math.floor(Math.random() * cols);
-            let y = Math.floor(Math.random() * rows);
-            let obstacle = grid[x][y];
-            
-            if (obstacle !== startNode && obstacle !== endNode && obstacle.walkable) {
-                obstacle.walkable = false;
-            } else {
-                i--; // Try again if position was invalid
-            }
+        if (grid[x][y] !== startNode && 
+            grid[x][y] !== endNode && 
+            grid[x][y].walkable) {
+            grid[x][y].walkable = false;
+        } else {
+            i--; // Try again if position was invalid
         }
+    }
 
-        path = aStar(startNode, endNode);
-    } while (path.length === 0);
-
+    // Reset game state
     userPath = [];
+    path = aStar(startNode, endNode);
     timeLeft = Math.max(30, 60 - (currentLevel - 1) * 10);
     powerUps = [];
     showOptimalPath = false;
+
+    // Only proceed if a valid path exists
+    if (path.length === 0) {
+        initializeGrid(); // Retry if no valid path
+        return;
+    }
 
     addPowerUps();
     updateStats();
     drawGrid();
 }
+
 
 function addPowerUps() {
     const powerUpTypes = ['obstacleRemover', 'timeBoost', 'pointBoost'];
@@ -230,45 +222,52 @@ function addPowerUps() {
 function drawGrid() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid cells
+    // Draw grid and obstacles
     for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
             let node = grid[i][j];
-            ctx.fillStyle = node.walkable ? 
-                (node.touched ? 'rgba(52, 152, 219, 0.2)' : '#ffffff') : 
-                '#34495e';
+            // Set fill color based on node type
+            if (!node.walkable) {
+                ctx.fillStyle = '#34495e'; // Obstacle color
+            } else if (node.touched) {
+                ctx.fillStyle = 'rgba(52, 152, 219, 0.2)'; // Touched path
+            } else {
+                ctx.fillStyle = '#ffffff'; // Empty cell
+            }
+            
+            // Draw cell
             ctx.fillRect(i * gridSize, j * gridSize, gridSize, gridSize);
             ctx.strokeStyle = '#ecf0f1';
             ctx.strokeRect(i * gridSize, j * gridSize, gridSize, gridSize);
         }
     }
 
-    // Draw start and end points
-    const pointSize = gridSize * 0.8;
-    
+
+      // Draw start point
     ctx.fillStyle = '#2ecc71';
     ctx.beginPath();
     ctx.arc(
         startNode.x * gridSize + gridSize/2,
         startNode.y * gridSize + gridSize/2,
-        pointSize/2,
+        gridSize/3,
         0,
         Math.PI * 2
     );
     ctx.fill();
 
+    // Draw end point
     ctx.fillStyle = '#e74c3c';
     ctx.beginPath();
     ctx.arc(
         endNode.x * gridSize + gridSize/2,
         endNode.y * gridSize + gridSize/2,
-        pointSize/2,
+        gridSize/3,
         0,
         Math.PI * 2
     );
     ctx.fill();
-
-    // Draw power-ups
+    
+     // Draw power-ups
     powerUps.forEach(powerUp => {
         if (!powerUp.collected) {
             let color;
@@ -277,14 +276,12 @@ function drawGrid() {
                 case 'timeBoost': color = '#1abc9c'; break;
                 case 'pointBoost': color = '#3498db'; break;
             }
-            
-            const pulseSize = Math.sin(Date.now() / 500) * 2;
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(
                 (powerUp.x + 0.5) * gridSize,
                 (powerUp.y + 0.5) * gridSize,
-                (gridSize / 3) + pulseSize,
+                gridSize/3,
                 0,
                 Math.PI * 2
             );
@@ -295,17 +292,23 @@ function drawGrid() {
     // Draw user path
     if (userPath.length > 0) {
         ctx.beginPath();
-        ctx.moveTo((userPath[0].x + 0.5) * gridSize, (userPath[0].y + 0.5) * gridSize);
+        ctx.moveTo(
+            userPath[0].x * gridSize + gridSize/2,
+            userPath[0].y * gridSize + gridSize/2
+        );
         for (let i = 1; i < userPath.length; i++) {
-            ctx.lineTo((userPath[i].x + 0.5) * gridSize, (userPath[i].y + 0.5) * gridSize);
+            ctx.lineTo(
+                userPath[i].x * gridSize + gridSize/2,
+                userPath[i].y * gridSize + gridSize/2
+            );
         }
         ctx.strokeStyle = theme;
-        ctx.lineWidth = MOBILE.isTouchDevice() ? 6 : 4;
+        ctx.lineWidth = 4;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke();
     }
-
+}
     // Draw optimal path if shown
     if (showOptimalPath && path.length > 0) {
         ctx.beginPath();
