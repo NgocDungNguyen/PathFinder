@@ -1,15 +1,7 @@
-// Device and display constants
-const DEVICE = {
-    isMobile: () => window.innerWidth <= 768,
-    GRID_SIZE: {
-        MOBILE: 35,
-        DESKTOP: 30
-    },
-    TOUCH_FEEDBACK: {
-        COLOR: 'rgba(52, 152, 219, 0.3)',
-        RADIUS: 20,
-        DURATION: 300
-    }
+const MOBILE = {
+    isTouchDevice: () => 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+    MIN_TOUCH_TARGET: 44,
+    SCROLL_THRESHOLD: 10
 };
 
 class Node {
@@ -25,10 +17,9 @@ class Node {
     }
 }
 
-// Game initialization
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let gridSize = DEVICE.isMobile() ? DEVICE.GRID_SIZE.MOBILE : DEVICE.GRID_SIZE.DESKTOP;
+let gridSize = MOBILE.isTouchDevice() ? 35 : 30;
 let cols, rows;
 let grid = [];
 let startNode, endNode;
@@ -41,27 +32,27 @@ let currentLevel = 1;
 let timeLeft = 60;
 let timerInterval;
 let gameStarted = false;
+let touchStartY = 0;
+let isScrolling = false;
 let lastTouchPos = { x: 0, y: 0 };
 let touchFeedbackTimeout;
 
-// Game state
 let achievements = {
     perfectPath: false,
     speedster: false,
     collector: false
 };
+
 let powerUps = [];
 let theme = '#3498db';
 let showOptimalPath = false;
 let animationId;
 
-// Audio setup
 const backgroundMusic = document.getElementById('backgroundMusic');
 const powerUpSound = document.getElementById('powerUpSound');
 const levelCompleteSound = document.getElementById('levelCompleteSound');
 const gameOverSound = document.getElementById('gameOverSound');
 
-// Set audio volumes
 [backgroundMusic, powerUpSound, levelCompleteSound, gameOverSound].forEach(audio => {
     audio.volume = audio === backgroundMusic ? 0.1 : 0.5;
 });
@@ -69,10 +60,35 @@ const gameOverSound = document.getElementById('gameOverSound');
 let isMuted = false;
 const muteButton = document.getElementById('muteButton');
 
-// Prevent unwanted mobile behaviors
+function enableMobileScrolling() {
+    if (MOBILE.isTouchDevice()) {
+        document.body.style.overflow = 'auto';
+        document.body.style.height = 'auto';
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            const touchY = e.touches[0].clientY;
+            const deltaY = Math.abs(touchY - touchStartY);
+            
+            if (deltaY > MOBILE.SCROLL_THRESHOLD) {
+                isScrolling = true;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            isScrolling = false;
+        }, { passive: true });
+    }
+}
+
 function preventDefaultBehaviors() {
-    document.addEventListener('touchmove', (e) => {
-        if (e.scale !== 1) e.preventDefault();
+    canvas.addEventListener('touchmove', (e) => {
+        if (drawing) {
+            e.preventDefault();
+        }
     }, { passive: false });
 
     document.addEventListener('gesturestart', (e) => {
@@ -84,10 +100,6 @@ function preventDefaultBehaviors() {
     });
 }
 
-// Initialize mobile prevention
-preventDefaultBehaviors();
-
-// Audio control functions
 function toggleMute() {
     isMuted = !isMuted;
     [backgroundMusic, powerUpSound, levelCompleteSound, gameOverSound]
@@ -122,31 +134,23 @@ function playGameOverSound() {
     gameOverSound.play().catch(() => {});
 }
 
-// Canvas setup and responsiveness
 function resizeCanvas() {
     const container = document.querySelector('.game-canvas-container');
     const containerWidth = container.clientWidth;
-    let canvasSize = Math.min(containerWidth - 20, DEVICE.isMobile() ? 375 : 600);
+    let canvasSize = Math.min(containerWidth - 20, MOBILE.isTouchDevice() ? 375 : 600);
     
     canvas.style.width = `${canvasSize}px`;
     canvas.style.height = `${canvasSize * 0.75}px`;
     canvas.width = canvasSize;
     canvas.height = canvasSize * 0.75;
     
-    gridSize = DEVICE.isMobile() ? DEVICE.GRID_SIZE.MOBILE : DEVICE.GRID_SIZE.DESKTOP;
+    gridSize = MOBILE.isTouchDevice() ? 35 : 30;
     cols = Math.floor(canvas.width / gridSize);
     rows = Math.floor(canvas.height / gridSize);
     
     initializeGrid();
     drawGrid();
 }
-
-// Event listeners
-window.addEventListener('resize', resizeCanvas);
-muteButton.addEventListener('click', toggleMute);
-
-// Initialize canvas
-resizeCanvas();
 
 function initializeGrid() {
     grid = [];
@@ -158,7 +162,6 @@ function initializeGrid() {
     }
 
     do {
-        // Reset grid
         for (let i = 0; i < cols; i++) {
             for (let j = 0; j < rows; j++) {
                 grid[i][j].walkable = true;
@@ -166,14 +169,12 @@ function initializeGrid() {
             }
         }
 
-        // Set start and end points with minimum distance
         do {
             startNode = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
             endNode = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
             let minDistance = Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
         } while (minDistance < Math.max(cols, rows) / 2);
 
-        // Add obstacles based on level
         let obstaclePercentage = 0.2 + (currentLevel - 1) * 0.08;
         for (let i = 0; i < cols * rows * obstaclePercentage; i++) {
             let obstacle = grid[Math.floor(Math.random() * cols)][Math.floor(Math.random() * rows)];
@@ -185,7 +186,6 @@ function initializeGrid() {
         path = aStar(startNode, endNode);
     } while (path.length === 0);
 
-    // Reset game state
     userPath = [];
     timeLeft = Math.max(30, 60 - (currentLevel - 1) * 10);
     powerUps = [];
@@ -198,7 +198,7 @@ function initializeGrid() {
 
 function addPowerUps() {
     const powerUpTypes = ['obstacleRemover', 'timeBoost', 'pointBoost'];
-    const powerUpCount = DEVICE.isMobile() ? 5 : 8;
+    const powerUpCount = MOBILE.isTouchDevice() ? 5 : 8;
 
     for (let i = 0; i < powerUpCount; i++) {
         let x = Math.floor(Math.random() * cols);
@@ -219,7 +219,7 @@ function addPowerUps() {
 function drawGrid() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid cells with smooth transitions
+    // Draw grid cells
     for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
             let node = grid[i][j];
@@ -232,11 +232,9 @@ function drawGrid() {
         }
     }
 
-    // Draw start and end points with visual enhancement
+    // Draw start and end points
     const pointSize = gridSize * 0.8;
-    const offset = (gridSize - pointSize) / 2;
-
-    // Start point
+    
     ctx.fillStyle = '#2ecc71';
     ctx.beginPath();
     ctx.arc(
@@ -248,7 +246,6 @@ function drawGrid() {
     );
     ctx.fill();
 
-    // End point
     ctx.fillStyle = '#e74c3c';
     ctx.beginPath();
     ctx.arc(
@@ -260,7 +257,7 @@ function drawGrid() {
     );
     ctx.fill();
 
-    // Draw power-ups with animation
+    // Draw power-ups
     powerUps.forEach(powerUp => {
         if (!powerUp.collected) {
             let color;
@@ -284,7 +281,7 @@ function drawGrid() {
         }
     });
 
-    // Draw user path with smooth animation
+    // Draw user path
     if (userPath.length > 0) {
         ctx.beginPath();
         ctx.moveTo((userPath[0].x + 0.5) * gridSize, (userPath[0].y + 0.5) * gridSize);
@@ -292,28 +289,38 @@ function drawGrid() {
             ctx.lineTo((userPath[i].x + 0.5) * gridSize, (userPath[i].y + 0.5) * gridSize);
         }
         ctx.strokeStyle = theme;
-        ctx.lineWidth = DEVICE.isMobile() ? 6 : 4;
+        ctx.lineWidth = MOBILE.isTouchDevice() ? 6 : 4;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke();
     }
 
-    // Draw touch feedback if on mobile
-    if (DEVICE.isMobile() && lastTouchPos.x !== 0) {
-        ctx.fillStyle = DEVICE.TOUCH_FEEDBACK.COLOR;
+    // Draw optimal path if shown
+    if (showOptimalPath && path.length > 0) {
         ctx.beginPath();
-        ctx.arc(lastTouchPos.x, lastTouchPos.y, DEVICE.TOUCH_FEEDBACK.RADIUS, 0, Math.PI * 2);
+        ctx.moveTo((path[0].x + 0.5) * gridSize, (path[0].y + 0.5) * gridSize);
+        for (let i = 1; i < path.length; i++) {
+            ctx.lineTo((path[i].x + 0.5) * gridSize, (path[i].y + 0.5) * gridSize);
+        }
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    // Draw touch feedback
+    if (MOBILE.isTouchDevice() && lastTouchPos.x !== 0) {
+        ctx.fillStyle = 'rgba(52, 152, 219, 0.3)';
+        ctx.beginPath();
+        ctx.arc(lastTouchPos.x, lastTouchPos.y, MOBILE.MIN_TOUCH_TARGET/2, 0, Math.PI * 2);
         ctx.fill();
     }
 }
 
-// A* pathfinding algorithm modified for vertical/horizontal movement only
 function aStar(start, end) {
     let openSet = [start];
     let closedSet = [];
     let path = [];
 
-    // Manhattan distance for vertical/horizontal movement
     function heuristic(a, b) {
         return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
     }
@@ -362,7 +369,6 @@ function aStar(start, end) {
     return [];
 }
 
-// Modified to only allow vertical/horizontal movement
 function getNeighbors(node) {
     const directions = [
         [0, -1], // up
@@ -382,25 +388,30 @@ function getNeighbors(node) {
         .filter(neighbor => neighbor && neighbor.walkable);
 }
 
-// Enhanced touch handling
 function handleStart(e) {
     if (gameStarted) {
-        e.preventDefault();
-        drawing = true;
-        userPath = [];
-        
         if (e.type.includes('touch')) {
-            const touch = e.touches[0];
-            showTouchFeedback(touch.clientX, touch.clientY);
+            if (e.target === canvas) {
+                e.preventDefault();
+            }
         }
         
-        handleMove(e);
+        if (!isScrolling) {
+            drawing = true;
+            userPath = [];
+            handleMove(e);
+        }
     }
 }
 
 function handleMove(e) {
-    if (drawing && gameStarted) {
-        e.preventDefault();
+    if (drawing && gameStarted && !isScrolling) {
+        if (e.type.includes('touch')) {
+            if (e.target === canvas) {
+                e.preventDefault();
+            }
+        }
+
         let rect = canvas.getBoundingClientRect();
         let scaleX = canvas.width / rect.width;
         let scaleY = canvas.height / rect.height;
@@ -422,7 +433,6 @@ function handleMove(e) {
             let node = grid[x][y];
             if (!userPath.includes(node) && node.walkable) {
                 if (userPath.length === 0 || isValidMove(userPath[userPath.length - 1], node)) {
-                    // Haptic feedback
                     if (window.navigator.vibrate) {
                         window.navigator.vibrate(25);
                     }
@@ -448,20 +458,12 @@ function showTouchFeedback(x, y) {
     touchFeedbackTimeout = setTimeout(() => {
         lastTouchPos = { x: 0, y: 0 };
         drawGrid();
-    }, DEVICE.TOUCH_FEEDBACK.DURATION);
+    }, 300);
 }
 
 function isValidMove(from, to) {
     return Math.abs(from.x - to.x) + Math.abs(from.y - to.y) === 1;
 }
-
-// Add touch event listeners
-canvas.addEventListener('touchstart', handleStart, { passive: false });
-canvas.addEventListener('touchmove', handleMove, { passive: false });
-canvas.addEventListener('touchend', handleEnd);
-canvas.addEventListener('mousedown', handleStart);
-canvas.addEventListener('mousemove', handleMove);
-canvas.addEventListener('mouseup', handleEnd);
 
 function checkPowerUpCollection(x, y) {
     let collectedPowerUp = powerUps.find(p => p.x === x && p.y === y && !p.collected);
@@ -492,13 +494,13 @@ function checkPowerUpCollection(x, y) {
     }
 }
 
+
 function showPowerUpEffect(text, color) {
     const effect = document.createElement('div');
     effect.className = 'power-up-effect';
     effect.textContent = text;
     effect.style.color = color;
     document.querySelector('.game-canvas-container').appendChild(effect);
-    
     setTimeout(() => effect.remove(), 1000);
 }
 
@@ -517,7 +519,6 @@ function removeRandomObstacles() {
     drawGrid();
 }
 
-// Modified level progression
 function startGame() {
     if (!gameStarted) {
         gameStarted = true;
@@ -532,7 +533,6 @@ function startGame() {
             confirmButtonText: 'Start!',
             allowOutsideClick: false
         }).then(() => {
-            // Start animation frame after user confirms
             animationId = requestAnimationFrame(gameLoop);
         });
     }
@@ -541,23 +541,20 @@ function startGame() {
 function finishLevel() {
     if (gameStarted) {
         let similarity = calculateSimilarity(path, userPath);
-        let resultMessage = document.getElementById('resultMessage');
 
-        if (similarity >= 0.65) { // Fixed threshold for all levels
+        if (similarity >= 0.65) {
             playLevelCompleteSound();
-            
             score += Math.round(similarity * 100) * currentLevel;
+            
             if (similarity === 1) achievements.perfectPath = true;
             if (timeLeft > 30) achievements.speedster = true;
             
             currentLevel++;
             
-            // Show level complete animation
             showLevelComplete(similarity, () => {
                 if (currentLevel > 3) {
                     endGame(true);
                 } else {
-                    // Automatically start next level
                     initializeGrid();
                     gameStarted = true;
                     startTimer();
@@ -630,41 +627,12 @@ function calculateSimilarity(optimalPath, userPath) {
     return matchingPoints / totalPoints;
 }
 
-function updateStats() {
-    document.getElementById('score').textContent = score;
-    document.getElementById('bestScore').textContent = Math.max(bestScore, score);
-    document.getElementById('currentLevel').textContent = currentLevel;
-    document.getElementById('timeLeft').textContent = timeLeft;
-}
-
-function updateAchievements() {
-    let achievementsDiv = document.getElementById('achievements');
-    achievementsDiv.innerHTML = 'Achievements: ';
-    
-    const achievementsList = {
-        perfectPath: { text: 'Perfect Path', color: '#f1c40f' },
-        speedster: { text: 'Speedster', color: '#e74c3c' },
-        collector: { text: 'Collector', color: '#2ecc71' }
-    };
-    
-    Object.entries(achievements).forEach(([key, achieved]) => {
-        if (achieved) {
-            achievementsDiv.innerHTML += `
-                <span class="achievement" style="background-color: ${achievementsList[key].color}">
-                    ${achievementsList[key].text}
-                </span>
-            `;
-        }
-    });
-}
-
 function startTimer() {
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         timeLeft--;
         document.getElementById('timeLeft').textContent = timeLeft;
         
-        // Warning animation when time is low
         if (timeLeft <= 10) {
             document.getElementById('timeLeft').style.color = '#e74c3c';
             if (timeLeft <= 5) {
@@ -757,77 +725,64 @@ function resetGame() {
     initializeGrid();
 }
 
+function updateStats() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('bestScore').textContent = Math.max(bestScore, score);
+    document.getElementById('currentLevel').textContent = currentLevel;
+    document.getElementById('timeLeft').textContent = timeLeft;
+}
+
+function updateAchievements() {
+    let achievementsDiv = document.getElementById('achievements');
+    achievementsDiv.innerHTML = 'Achievements: ';
+    
+    const achievementsList = {
+        perfectPath: { text: 'Perfect Path', color: '#f1c40f' },
+        speedster: { text: 'Speedster', color: '#e74c3c' },
+        collector: { text: 'Collector', color: '#2ecc71' }
+    };
+    
+    Object.entries(achievements).forEach(([key, achieved]) => {
+        if (achieved) {
+            achievementsDiv.innerHTML += `
+                <span class="achievement" style="background-color: ${achievementsList[key].color}">
+                    ${achievementsList[key].text}
+                </span>
+            `;
+        }
+    });
+}
+
 function gameLoop() {
     if (gameStarted) {
         drawGrid();
-        
-        // Add subtle background animation
-        if (currentLevel >= 2) {
-            animateBackground();
-        }
-        
         animationId = requestAnimationFrame(gameLoop);
     }
 }
 
-function animateBackground() {
-    const time = Date.now() * 0.001;
-    ctx.fillStyle = 'rgba(52, 152, 219, 0.1)';
-    for (let i = 0; i < 5; i++) {
-        const x = Math.sin(time + i) * canvas.width;
-        const y = Math.cos(time + i) * canvas.height;
-        ctx.beginPath();
-        ctx.arc(x, y, 20, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-// CSS Animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.2); }
-        100% { transform: scale(1); }
-    }
-    
-    .power-up-effect {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 24px;
-        font-weight: bold;
-        animation: floatUp 1s ease-out forwards;
-        pointer-events: none;
-    }
-    
-    @keyframes floatUp {
-        0% { opacity: 1; transform: translate(-50%, -50%); }
-        100% { opacity: 0; transform: translate(-50%, -100%); }
-    }
-    
-    .touch-feedback {
-        position: absolute;
-        width: ${DEVICE.TOUCH_FEEDBACK.RADIUS * 2}px;
-        height: ${DEVICE.TOUCH_FEEDBACK.RADIUS * 2}px;
-        border-radius: 50%;
-        background: ${DEVICE.TOUCH_FEEDBACK.COLOR};
-        pointer-events: none;
-        animation: touchFade 0.3s ease-out forwards;
-    }
-    
-    @keyframes touchFade {
-        0% { transform: scale(0.5); opacity: 1; }
-        100% { transform: scale(1.5); opacity: 0; }
-    }
-`;
-document.head.appendChild(style);
-
 // Event Listeners
+canvas.addEventListener('touchstart', handleStart, { passive: false });
+canvas.addEventListener('touchmove', handleMove, { passive: false });
+canvas.addEventListener('touchend', handleEnd);
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('mousemove', handleMove);
+canvas.addEventListener('mouseup', handleEnd);
 document.getElementById('startButton').addEventListener('click', startGame);
 document.getElementById('finishButton').addEventListener('click', finishLevel);
 document.getElementById('newGameButton').addEventListener('click', resetGame);
+muteButton.addEventListener('click', toggleMute);
 
-// Initialize game
-initializeGrid();
+// Initialize
+enableMobileScrolling();
+preventDefaultBehaviors();
+resizeCanvas();
+
+const resizeObserver = new ResizeObserver(entries => {
+    for (let entry of entries) {
+        if (entry.target === canvas) {
+            resizeCanvas();
+        }
+    }
+});
+
+resizeObserver.observe(canvas);
