@@ -276,17 +276,22 @@ function drawGrid() {
         if (!powerUp.collected) {
             let color;
             switch (powerUp.type) {
-                case 'obstacleRemover': color = '#ff6b6b'; // Changed to red-orange
-                case 'timeBoost': color = '#ffd93d'; // Changed to yellow
-                case 'pointBoost': color = '#6c5ce7'; // Changed to purple
-                break;
+                case 'obstacleRemover':
+                    color = '#ff6b6b';  // red-orange
+                    break;              // Add break statement
+                case 'timeBoost':
+                    color = '#ffd93d';  // yellow
+                    break;              // Add break statement
+                case 'pointBoost':
+                    color = '#6c5ce7';  // purple
+                    break;              // Add break statement
             }
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(
                 (powerUp.x + 0.5) * gridSize,
                 (powerUp.y + 0.5) * gridSize,
-                gridSize/4, // Made power-ups slightly smaller
+                gridSize/4,
                 0,
                 Math.PI * 2
             );
