@@ -1,8 +1,4 @@
-const MOBILE = {
-    isTouchDevice: () => 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-    MIN_TOUCH_TARGET: 44,
-    SCROLL_THRESHOLD: 10
-};
+const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
 class Node {
     constructor(x, y, walkable = true) {
@@ -19,7 +15,7 @@ class Node {
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let gridSize = MOBILE.isTouchDevice() ? 35 : 30;
+let gridSize = isTouchDevice() ? 40 : 30;
 let cols, rows;
 let grid = [];
 let startNode, endNode;
@@ -32,17 +28,6 @@ let currentLevel = 1;
 let timeLeft = 60;
 let timerInterval;
 let gameStarted = false;
-let touchStartY = 0;
-let isScrolling = false;
-let lastTouchPos = { x: 0, y: 0 };
-let touchFeedbackTimeout;
-
-let achievements = {
-    perfectPath: false,
-    speedster: false,
-    collector: false
-};
-
 let powerUps = [];
 let theme = '#3498db';
 let showOptimalPath = false;
@@ -60,45 +45,11 @@ const gameOverSound = document.getElementById('gameOverSound');
 let isMuted = false;
 const muteButton = document.getElementById('muteButton');
 
-function enableMobileScrolling() {
-    if (MOBILE.isTouchDevice()) {
-        document.body.style.overflow = 'auto';
-        document.body.style.height = 'auto';
-        
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            const deltaY = Math.abs(touchY - touchStartY);
-            
-            if (deltaY > MOBILE.SCROLL_THRESHOLD) {
-                isScrolling = true;
-            }
-        }, { passive: true });
-
-        document.addEventListener('touchend', () => {
-            isScrolling = false;
-        }, { passive: true });
-    }
-}
-
-function preventDefaultBehaviors() {
-    canvas.addEventListener('touchmove', (e) => {
-        if (drawing) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-
-    document.addEventListener('gesturestart', (e) => {
-        e.preventDefault();
-    });
-
-    document.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-    });
-}
+let achievements = {
+    perfectPath: false,
+    speedster: false,
+    collector: false
+};
 
 function toggleMute() {
     isMuted = !isMuted;
@@ -137,14 +88,14 @@ function playGameOverSound() {
 function resizeCanvas() {
     const container = document.querySelector('.game-canvas-container');
     const containerWidth = container.clientWidth;
-    let canvasSize = Math.min(containerWidth - 20, MOBILE.isTouchDevice() ? 375 : 600);
+    let canvasSize = Math.min(containerWidth - 20, isTouchDevice() ? 375 : 600);
     
     canvas.style.width = `${canvasSize}px`;
     canvas.style.height = `${canvasSize * 0.75}px`;
     canvas.width = canvasSize;
     canvas.height = canvasSize * 0.75;
     
-    gridSize = Math.floor(canvasSize / 12); // Changed from 15 to 12 for bigger cells
+    gridSize = Math.floor(canvasSize / (isTouchDevice() ? 10 : 15));
     cols = Math.floor(canvas.width / gridSize);
     rows = Math.floor(canvas.height / gridSize);
     
@@ -154,7 +105,6 @@ function resizeCanvas() {
 }
 
 function initializeGrid() {
-    // Reset grid
     grid = [];
     for (let i = 0; i < cols; i++) {
         grid[i] = [];
@@ -163,37 +113,31 @@ function initializeGrid() {
         }
     }
 
-    // Place start and end points with minimum distance
     startNode = grid[1][Math.floor(rows/2)];
     endNode = grid[cols-2][Math.floor(rows/2)];
 
-    // Add obstacles
-    let obstacleCount = Math.floor((cols * rows) * 0.25); // 25% of cells are obstacles
+    let obstacleCount = Math.floor((cols * rows) * 0.25);
     for (let i = 0; i < obstacleCount; i++) {
         let x = Math.floor(Math.random() * cols);
         let y = Math.floor(Math.random() * rows);
         
-        // Check if position is valid for obstacle
         if (grid[x][y] !== startNode && 
             grid[x][y] !== endNode && 
             grid[x][y].walkable) {
             grid[x][y].walkable = false;
         } else {
-            i--; // Try again if position was invalid
+            i--;
         }
     }
 
-    // Reset game state
     userPath = [];
     path = aStar(startNode, endNode);
     timeLeft = Math.max(30, 60 - (currentLevel - 1) * 10);
     powerUps = [];
     showOptimalPath = false;
 
-    // Only proceed if a valid path exists
     if (!path || path.length === 0) {
-        console.log("No valid path found, retrying...");
-        initializeGrid(); // Retry if no valid path
+        initializeGrid();
         return;
     }
 
@@ -204,7 +148,7 @@ function initializeGrid() {
 
 function addPowerUps() {
     const powerUpTypes = ['obstacleRemover', 'timeBoost', 'pointBoost'];
-    const powerUpCount = MOBILE.isTouchDevice() ? 5 : 8;
+    const powerUpCount = isTouchDevice() ? 5 : 8;
 
     for (let i = 0; i < powerUpCount; i++) {
         let x = Math.floor(Math.random() * cols);
@@ -223,31 +167,25 @@ function addPowerUps() {
 }
 
 function drawGrid() {
-    console.log("Drawing grid:", {cols, rows, gridSize, startNode, endNode});
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid and obstacles
     for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
             let node = grid[i][j];
-            // Set fill color based on node type
             if (!node.walkable) {
-                ctx.fillStyle = '#34495e'; // Obstacle color
+                ctx.fillStyle = '#34495e';
             } else if (node.touched) {
-                ctx.fillStyle = 'rgba(52, 152, 219, 0.2)'; // Touched path
+                ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
             } else {
-                ctx.fillStyle = '#ffffff'; // Empty cell
+                ctx.fillStyle = '#ffffff';
             }
             
-            // Draw cell
             ctx.fillRect(i * gridSize, j * gridSize, gridSize, gridSize);
             ctx.strokeStyle = '#ecf0f1';
             ctx.strokeRect(i * gridSize, j * gridSize, gridSize, gridSize);
         }
     }
 
-    // Draw start point
     ctx.fillStyle = '#2ecc71';
     ctx.beginPath();
     ctx.arc(
@@ -259,7 +197,6 @@ function drawGrid() {
     );
     ctx.fill();
 
-    // Draw end point
     ctx.fillStyle = '#e74c3c';
     ctx.beginPath();
     ctx.arc(
@@ -271,26 +208,24 @@ function drawGrid() {
     );
     ctx.fill();
 
-    // Draw power-ups
     powerUps.forEach(powerUp => {
         if (!powerUp.collected) {
             let color;
             switch (powerUp.type) {
                 case 'obstacleRemover':
-                    color = '#ff6b6b';  // red-orange
+                    color = '#ff6b6b';
                     break;              
                 case 'timeBoost':
-                    color = '#ffd93d';  // yellow
+                    color = '#ffd93d';
                     break;              
                 case 'pointBoost':
-                    color = '#6c5ce7';  // purple
+                    color = '#6c5ce7';
                     break;              
                 default:
-                    color = '#ffffff';  // default white
+                    color = '#ffffff';
                     break;
             }
             
-            // Draw power-up circle
             ctx.beginPath();
             ctx.fillStyle = color;
             ctx.arc(
@@ -302,12 +237,10 @@ function drawGrid() {
             );
             ctx.fill();
             
-            // Add white border
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Add inner dot
             ctx.beginPath();
             ctx.fillStyle = '#ffffff';
             ctx.arc(
@@ -321,7 +254,6 @@ function drawGrid() {
         }
     });
 
-    // Draw user path
     if (userPath.length > 0) {
         ctx.beginPath();
         ctx.moveTo(
@@ -341,7 +273,6 @@ function drawGrid() {
         ctx.stroke();
     }
 
-    // Draw optimal path if shown
     if (showOptimalPath && path.length > 0) {
         ctx.beginPath();
         ctx.moveTo((path[0].x + 0.5) * gridSize, (path[0].y + 0.5) * gridSize);
@@ -351,14 +282,6 @@ function drawGrid() {
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.stroke();
-    }
-
-    // Draw touch feedback
-    if (MOBILE.isTouchDevice() && lastTouchPos.x !== 0) {
-        ctx.fillStyle = 'rgba(52, 152, 219, 0.3)';
-        ctx.beginPath();
-        ctx.arc(lastTouchPos.x, lastTouchPos.y, MOBILE.MIN_TOUCH_TARGET/2, 0, Math.PI * 2);
-        ctx.fill();
     }
 }
 
@@ -417,10 +340,10 @@ function aStar(start, end) {
 
 function getNeighbors(node) {
     const directions = [
-        [0, -1], // up
-        [1, 0],  // right
-        [0, 1],  // down
-        [-1, 0]  // left
+        [0, -1],
+        [1, 0],
+        [0, 1],
+        [-1, 0]
     ];
     
     return directions
@@ -436,53 +359,31 @@ function getNeighbors(node) {
 
 function handleStart(e) {
     if (gameStarted) {
-        if (e.type.includes('touch')) {
-            if (e.target === canvas) {
-                e.preventDefault();
-            }
-        }
-        
-        if (!isScrolling) {
-            drawing = true;
-            userPath = [];
-            handleMove(e);
-        }
+        drawing = true;
+        userPath = [];
+        handleMove(e);
     }
 }
 
 function handleMove(e) {
-    if (drawing && gameStarted && !isScrolling) {
-        if (e.type.includes('touch')) {
-            if (e.target === canvas) {
-                e.preventDefault();
-            }
-        }
-
+    if (drawing && gameStarted) {
         let rect = canvas.getBoundingClientRect();
         let scaleX = canvas.width / rect.width;
         let scaleY = canvas.height / rect.height;
-        let clientX, clientY;
-        
+        let x, y;
+
         if (e.type.includes('touch')) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-            showTouchFeedback(clientX, clientY);
+            x = Math.floor(((e.touches[0].clientX - rect.left) * scaleX) / gridSize);
+            y = Math.floor(((e.touches[0].clientY - rect.top) * scaleY) / gridSize);
         } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
+            x = Math.floor(((e.clientX - rect.left) * scaleX) / gridSize);
+            y = Math.floor(((e.clientY - rect.top) * scaleY) / gridSize);
         }
-        
-        let x = Math.floor(((clientX - rect.left) * scaleX) / gridSize);
-        let y = Math.floor(((clientY - rect.top) * scaleY) / gridSize);
         
         if (x >= 0 && x < cols && y >= 0 && y < rows) {
             let node = grid[x][y];
             if (!userPath.includes(node) && node.walkable) {
                 if (userPath.length === 0 || isValidMove(userPath[userPath.length - 1], node)) {
-                    if (window.navigator.vibrate) {
-                        window.navigator.vibrate(25);
-                    }
-                    
                     userPath.push(node);
                     node.touched = true;
                     checkPowerUpCollection(x, y);
@@ -495,16 +396,6 @@ function handleMove(e) {
 
 function handleEnd() {
     drawing = false;
-    lastTouchPos = { x: 0, y: 0 };
-}
-
-function showTouchFeedback(x, y) {
-    lastTouchPos = { x, y };
-    clearTimeout(touchFeedbackTimeout);
-    touchFeedbackTimeout = setTimeout(() => {
-        lastTouchPos = { x: 0, y: 0 };
-        drawGrid();
-    }, 300);
 }
 
 function isValidMove(from, to) {
@@ -540,7 +431,6 @@ function checkPowerUpCollection(x, y) {
     }
 }
 
-
 function showPowerUpEffect(text, color) {
     const effect = document.createElement('div');
     effect.className = 'power-up-effect';
@@ -568,7 +458,7 @@ function removeRandomObstacles() {
 function startGame() {
     if (!gameStarted) {
         gameStarted = true;
-        initializeGrid(); // Add this line to ensure grid is initialized
+        initializeGrid();
         startTimer();
         document.getElementById('startButton').style.display = 'none';
         playBackgroundMusic();
@@ -580,7 +470,7 @@ function startGame() {
             confirmButtonText: 'Start!',
             allowOutsideClick: false
         }).then(() => {
-            drawGrid(); // Add this line to ensure grid is drawn
+            drawGrid();
             animationId = requestAnimationFrame(gameLoop);
         });
     }
@@ -808,9 +698,8 @@ function gameLoop() {
     }
 }
 
-// Event Listeners
-canvas.addEventListener('touchstart', handleStart, { passive: false });
-canvas.addEventListener('touchmove', handleMove, { passive: false });
+canvas.addEventListener('touchstart', handleStart);
+canvas.addEventListener('touchmove', handleMove);
 canvas.addEventListener('touchend', handleEnd);
 canvas.addEventListener('mousedown', handleStart);
 canvas.addEventListener('mousemove', handleMove);
@@ -820,9 +709,6 @@ document.getElementById('finishButton').addEventListener('click', finishLevel);
 document.getElementById('newGameButton').addEventListener('click', resetGame);
 muteButton.addEventListener('click', toggleMute);
 
-// Initialize
-enableMobileScrolling();
-preventDefaultBehaviors();
 resizeCanvas();
 
 const resizeObserver = new ResizeObserver(entries => {
